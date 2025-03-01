@@ -563,7 +563,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               IconButton(
-                icon: const Icon(Icons.arrow_left, color: Colors.white),
+                icon: const Icon(Icons.arrow_left, color: Colors.black),
                 onPressed: _gotoPrevDay,
               ),
               GestureDetector(
@@ -582,11 +582,11 @@ class _SchedulerPageState extends State<SchedulerPage> {
                 },
                 child: Text(
                   dateString,
-                  style: const TextStyle(fontSize: 16, color: Colors.white),
+                  style: const TextStyle(fontSize: 16, color: Colors.black),
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.arrow_right, color: Colors.white),
+                icon: const Icon(Icons.arrow_right, color: Colors.black),
                 onPressed: _gotoNextDay,
               ),
             ],
