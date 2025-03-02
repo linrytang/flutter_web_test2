@@ -85,8 +85,8 @@ class _SchedulerPageState extends State<SchedulerPage> {
 
   final int startHour = 10;
   final int endHour = 20;
-  final double rowHeight = 80;
-  final double minuteWidth = 2;
+  final double rowHeight = 80;   // 每个技师行的高度
+  final double minuteWidth = 2;  // 每分钟对应的像素宽度
 
   @override
   void initState() {
@@ -274,204 +274,477 @@ class _SchedulerPageState extends State<SchedulerPage> {
       return;
     }
 
+    // 默认值
     String selectedTherapist = therapists.first;
     String durationOption = "30分钟";
     bool isCustomDuration = false;
     TextEditingController customDurationController = TextEditingController();
     TextEditingController priceController = TextEditingController();
-    TextEditingController roomController = TextEditingController(); // 房间号输入
-    bool isNonCash = false; // 是否非现金支付
+    TextEditingController roomController = TextEditingController();
+    bool isNonCash = false;
 
     // 默认开始时间是当天 10:00
     DateTime startTime = DateTime(selectedDate.year, selectedDate.month, selectedDate.day, 10, 0);
 
-    // 选择开始时间（Cupertino 风格）
-    Future<void> pickTime() async {
-      await showModalBottomSheet(
-        context: context,
-        builder: (_) {
-          return SizedBox(
-            height: 250,
-            child: CupertinoDatePicker(
-              mode: CupertinoDatePickerMode.time,
-              use24hFormat: true,
-              initialDateTime: startTime,
-              onDateTimeChanged: (DateTime newDate) {
-                startTime = DateTime(selectedDate.year, selectedDate.month, selectedDate.day,
-                    newDate.hour, newDate.minute);
-              },
-            ),
-          );
-        },
-      );
-      setState(() {});
-    }
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            // 内部函数：选择时间（滑动即更新）
+            Future<void> pickTime() async {
+              DateTime tempTime = startTime;
+              await showModalBottomSheet(
+                context: context,
+                builder: (context) {
+                  return StatefulBuilder(
+                    builder: (ctxSheet, setStateSheet) {
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            height: 250,
+                            child: CupertinoDatePicker(
+                              mode: CupertinoDatePickerMode.time,
+                              use24hFormat: true,
+                              initialDateTime: tempTime,
+                              onDateTimeChanged: (DateTime newDate) {
+                                // 实时更新临时时间
+                                setStateSheet(() {
+                                  tempTime = DateTime(
+                                    selectedDate.year,
+                                    selectedDate.month,
+                                    selectedDate.day,
+                                    newDate.hour,
+                                    newDate.minute,
+                                  );
+                                });
+                              },
+                            ),
+                          ),
+                          ElevatedButton(
+                            onPressed: () {
+                              // 点击“确定”后更新对话框中的 startTime
+                              setStateDialog(() {
+                                startTime = tempTime;
+                              });
+                              Navigator.of(context).pop();
+                            },
+                            child: const Text("确定"),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
+              );
+            }
+
+            return AlertDialog(
+              title: const Text("添加预约"),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 技师选择
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(labelText: "技师"),
+                      value: selectedTherapist,
+                      items: therapists.map((t) {
+                        return DropdownMenuItem<String>(
+                          value: t,
+                          child: Text(t),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setStateDialog(() {
+                            selectedTherapist = value;
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 8),
+
+                    // 开始时间
+                    Row(
+                      children: [
+                        const Text("开始时间: "),
+                        TextButton(
+                          onPressed: pickTime,
+                          child: Text(
+                            "${startTime.hour.toString().padLeft(2, '0')}:${startTime.minute.toString().padLeft(2, '0')}",
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+
+                    // 持续时长
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(labelText: "持续时长"),
+                      value: durationOption,
+                      items: <String>["30分钟", "45分钟", "60分钟", "自定义"].map((e) {
+                        return DropdownMenuItem<String>(
+                          value: e,
+                          child: Text(e),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val == null) return;
+                        setStateDialog(() {
+                          durationOption = val;
+                          isCustomDuration = (val == "自定义");
+                        });
+                      },
+                    ),
+                    if (isCustomDuration) ...[
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: customDurationController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: "自定义时长(分钟)"),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+
+                    // 价格
+                    TextField(
+                      controller: priceController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(labelText: "价格"),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // 房间号
+                    TextField(
+                      controller: roomController,
+                      decoration: const InputDecoration(labelText: "房间号"),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // 是否非现金支付
+                    Row(
+                      children: [
+                        const Text("非现金支付: "),
+                        IconButton(
+                          onPressed: () {
+                            setStateDialog(() {
+                              isNonCash = !isNonCash;
+                            });
+                          },
+                          icon: Icon(
+                            Icons.change_history,
+                            color: isNonCash ? Colors.red : Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text("取消"),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    // 读取价格
+                    double p = double.tryParse(priceController.text) ?? 0.0;
+
+                    // 计算持续时间
+                    int finalDuration;
+                    if (isCustomDuration) {
+                      finalDuration = int.tryParse(customDurationController.text) ?? 0;
+                      if (finalDuration <= 0) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("自定义时长无效！")),
+                        );
+                        return;
+                      }
+                    } else {
+                      String numStr = durationOption.replaceAll("分钟", "");
+                      finalDuration = int.tryParse(numStr) ?? 30;
+                    }
+
+                    // 结束时间
+                    DateTime endTime = startTime.add(Duration(minutes: finalDuration));
+                    if (endTime.isBefore(startTime)) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("结束时间不能早于开始时间！")),
+                      );
+                      return;
+                    }
+
+                    // 构建新的预约对象
+                    String newId = "${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(1000)}";
+                    Appointment appt = Appointment(
+                      id: newId,
+                      therapist: selectedTherapist,
+                      start: startTime,
+                      end: endTime,
+                      price: p,
+                      roomNumber: roomController.text,
+                      isNonCash: isNonCash,
+                    );
+
+                    setState(() {
+                      appointments.add(appt);
+                    });
+                    _saveData();
+                    Navigator.of(ctx).pop();
+                  },
+                  child: const Text("保存"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// 弹窗：编辑已有预约
+  void _showEditAppointmentDialog(Appointment appt) {
+    // 先复制当前预约的数据到临时变量，以便用户修改
+    String selectedTherapist = appt.therapist;
+    DateTime startTime = appt.start;
+    Duration duration = appt.end.difference(appt.start);
+    TextEditingController priceController = TextEditingController(text: appt.price.toString());
+    TextEditingController roomController = TextEditingController(text: appt.roomNumber);
+    bool isNonCash = appt.isNonCash;
 
     showDialog(
       context: context,
       builder: (ctx) {
-        return StatefulBuilder(builder: (context, setStateDialog) {
-          return AlertDialog(
-            title: const Text("添加预约"),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // 技师选择
-                  DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(labelText: "技师"),
-                    value: selectedTherapist,
-                    items: therapists.map((t) {
-                      return DropdownMenuItem<String>(
-                        value: t,
-                        child: Text(t),
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            // 选择时间（滑动即更新）
+            Future<void> pickTime() async {
+              DateTime tempTime = startTime;
+              await showModalBottomSheet(
+                context: context,
+                builder: (context) {
+                  return StatefulBuilder(
+                    builder: (ctxSheet, setStateSheet) {
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            height: 250,
+                            child: CupertinoDatePicker(
+                              mode: CupertinoDatePickerMode.time,
+                              use24hFormat: true,
+                              initialDateTime: tempTime,
+                              onDateTimeChanged: (DateTime newDate) {
+                                setStateSheet(() {
+                                  tempTime = DateTime(
+                                    startTime.year,
+                                    startTime.month,
+                                    startTime.day,
+                                    newDate.hour,
+                                    newDate.minute,
+                                  );
+                                });
+                              },
+                            ),
+                          ),
+                          ElevatedButton(
+                            onPressed: () {
+                              setStateDialog(() {
+                                startTime = tempTime;
+                              });
+                              Navigator.of(context).pop();
+                            },
+                            child: const Text("确定"),
+                          ),
+                        ],
                       );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setStateDialog(() {
-                          selectedTherapist = value;
-                        });
-                      }
                     },
-                  ),
-                  const SizedBox(height: 8),
+                  );
+                },
+              );
+            }
 
-                  // 开始时间
-                  Row(
-                    children: [
-                      const Text("开始时间: "),
-                      TextButton(
-                        onPressed: pickTime,
-                        child: Text(
-                          "${startTime.hour.toString().padLeft(2, '0')}:${startTime.minute.toString().padLeft(2, '0')}",
-                          style: const TextStyle(fontSize: 16),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
+            // 根据当前时长(分钟)自动推断下拉框选项
+            int minutes = duration.inMinutes;
+            String durationOption;
+            if (minutes == 30 || minutes == 45 || minutes == 60) {
+              durationOption = "${minutes}分钟";
+            } else {
+              durationOption = "自定义";
+            }
+            TextEditingController customDurationController = TextEditingController(
+              text: durationOption == "自定义" ? "$minutes" : "",
+            );
+            bool isCustomDuration = (durationOption == "自定义");
 
-                  // 持续时长
-                  DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(labelText: "持续时长"),
-                    value: durationOption,
-                    items: <String>["30分钟", "45分钟", "60分钟", "自定义"].map((e) {
-                      return DropdownMenuItem<String>(
-                        value: e,
-                        child: Text(e),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val == null) return;
-                      setStateDialog(() {
-                        durationOption = val;
-                        isCustomDuration = (val == "自定义");
-                      });
-                    },
-                  ),
-                  if (isCustomDuration) ...[
+            return AlertDialog(
+              title: const Text("编辑预约"),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 技师选择
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(labelText: "技师"),
+                      value: selectedTherapist,
+                      items: therapists.map((t) {
+                        return DropdownMenuItem<String>(
+                          value: t,
+                          child: Text(t),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setStateDialog(() {
+                            selectedTherapist = value;
+                          });
+                        }
+                      },
+                    ),
                     const SizedBox(height: 8),
+
+                    // 开始时间
+                    Row(
+                      children: [
+                        const Text("开始时间: "),
+                        TextButton(
+                          onPressed: pickTime,
+                          child: Text(
+                            "${startTime.hour.toString().padLeft(2, '0')}:${startTime.minute.toString().padLeft(2, '0')}",
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+
+                    // 持续时长
+                    StatefulBuilder(
+                      builder: (ctxSB, setStateSB) {
+                        return Column(
+                          children: [
+                            DropdownButtonFormField<String>(
+                              decoration: const InputDecoration(labelText: "持续时长"),
+                              value: durationOption,
+                              items: <String>["30分钟", "45分钟", "60分钟", "自定义"].map((e) {
+                                return DropdownMenuItem<String>(
+                                  value: e,
+                                  child: Text(e),
+                                );
+                              }).toList(),
+                              onChanged: (val) {
+                                if (val == null) return;
+                                setStateSB(() {
+                                  durationOption = val;
+                                  isCustomDuration = (val == "自定义");
+                                });
+                              },
+                            ),
+                            if (isCustomDuration) ...[
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: customDurationController,
+                                keyboardType: TextInputType.number,
+                                decoration: const InputDecoration(labelText: "自定义时长(分钟)"),
+                                onChanged: (v) {
+                                  // 不一定要做实时验证，可根据需要添加
+                                },
+                              ),
+                            ],
+                          ],
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 8),
+
+                    // 价格
                     TextField(
-                      controller: customDurationController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: "自定义时长(分钟)"),
+                      controller: priceController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(labelText: "价格"),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // 房间号
+                    TextField(
+                      controller: roomController,
+                      decoration: const InputDecoration(labelText: "房间号"),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // 是否非现金支付
+                    Row(
+                      children: [
+                        const Text("非现金支付: "),
+                        IconButton(
+                          onPressed: () {
+                            setStateDialog(() {
+                              isNonCash = !isNonCash;
+                            });
+                          },
+                          icon: Icon(
+                            Icons.change_history,
+                            color: isNonCash ? Colors.red : Colors.grey,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
-                  const SizedBox(height: 8),
-
-                  // 价格
-                  TextField(
-                    controller: priceController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: "价格"),
-                  ),
-                  const SizedBox(height: 8),
-
-                  // 房间号
-                  TextField(
-                    controller: roomController,
-                    decoration: const InputDecoration(labelText: "房间号"),
-                  ),
-                  const SizedBox(height: 8),
-
-                  // 是否非现金支付
-                  Row(
-                    children: [
-                      const Text("非现金支付: "),
-                      IconButton(
-                        onPressed: () {
-                          setStateDialog(() {
-                            isNonCash = !isNonCash;
-                          });
-                        },
-                        icon: Icon(
-                          Icons.change_history,
-                          color: isNonCash ? Colors.red : Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                ),
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text("取消"),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  // 读取价格
-                  double p = double.tryParse(priceController.text) ?? 0.0;
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text("取消"),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    double p = double.tryParse(priceController.text) ?? 0.0;
 
-                  // 计算持续时间
-                  int finalDuration;
-                  if (isCustomDuration) {
-                    finalDuration = int.tryParse(customDurationController.text) ?? 0;
-                    if (finalDuration <= 0) {
+                    // 计算新的持续时长
+                    int finalDuration;
+                    if (isCustomDuration) {
+                      finalDuration = int.tryParse(customDurationController.text) ?? 0;
+                      if (finalDuration <= 0) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("自定义时长无效！")),
+                        );
+                        return;
+                      }
+                    } else {
+                      finalDuration = int.parse(durationOption.replaceAll("分钟", ""));
+                    }
+                    DateTime endTime = startTime.add(Duration(minutes: finalDuration));
+                    if (endTime.isBefore(startTime)) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("自定义时长无效！")),
+                        const SnackBar(content: Text("结束时间不能早于开始时间！")),
                       );
                       return;
                     }
-                  } else {
-                    String numStr = durationOption.replaceAll("分钟", "");
-                    finalDuration = int.tryParse(numStr) ?? 30;
-                  }
 
-                  // 结束时间
-                  DateTime endTime = startTime.add(Duration(minutes: finalDuration));
-                  if (endTime.isBefore(startTime)) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("结束时间不能早于开始时间！")),
-                    );
-                    return;
-                  }
+                    // 更新原有预约对象
+                    setState(() {
+                      appt.therapist = selectedTherapist;
+                      appt.start = startTime;
+                      appt.end = endTime;
+                      appt.price = p;
+                      appt.roomNumber = roomController.text;
+                      appt.isNonCash = isNonCash;
+                    });
 
-                  // 构建新的预约对象
-                  String newId = "${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(1000)}";
-                  Appointment appt = Appointment(
-                    id: newId,
-                    therapist: selectedTherapist,
-                    start: startTime,
-                    end: endTime,
-                    price: p,
-                    roomNumber: roomController.text,
-                    isNonCash: isNonCash,
-                  );
-
-                  setState(() {
-                    appointments.add(appt);
-                  });
-                  _saveData();
-                  Navigator.of(ctx).pop();
-                },
-                child: const Text("保存"),
-              ),
-            ],
-          );
-        });
+                    _saveData();
+                    Navigator.of(ctx).pop();
+                  },
+                  child: const Text("保存修改"),
+                ),
+              ],
+            );
+          },
+        );
       },
     );
   }
@@ -565,29 +838,81 @@ class _SchedulerPageState extends State<SchedulerPage> {
             ),
           ),
         ),
-        // 右侧区域：时间表网格 (CustomPainter)
+        // 右侧区域：时间表网格 + 预约块
         Expanded(
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            child: Container(
+            child: SizedBox(
               width: tableWidth,
               height: rowHeight,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey),
-              ),
-              child: CustomPaint(
-                painter: TimeRowPainter(
-                  startHour: startHour,
-                  endHour: endHour,
-                  minuteWidth: minuteWidth,
-                  rowHeight: rowHeight,
-                  appointments: dayAppointments,
-                ),
+              child: Stack(
+                children: [
+                  // 背景画布：绘制小时线、时间标签
+                  CustomPaint(
+                    size: Size(tableWidth, rowHeight),
+                    painter: TimeRowBackgroundPainter(
+                      startHour: startHour,
+                      endHour: endHour,
+                      minuteWidth: minuteWidth,
+                      rowHeight: rowHeight,
+                    ),
+                  ),
+                  // 逐个绘制预约块
+                  for (var appt in dayAppointments) _buildAppointmentBlock(appt),
+                ],
               ),
             ),
           ),
         ),
       ],
+    );
+  }
+
+  /// 在行内绘制“可点击的”预约块
+  Widget _buildAppointmentBlock(Appointment appt) {
+    int totalMinutes = (endHour - startHour) * 60;
+    int startMin = (appt.start.hour - startHour) * 60 + appt.start.minute;
+    int endMin = (appt.end.hour - startHour) * 60 + appt.end.minute;
+    startMin = startMin.clamp(0, totalMinutes);
+    endMin = endMin.clamp(0, totalMinutes);
+
+    double left = startMin * minuteWidth;
+    double width = (endMin - startMin) * minuteWidth;
+    if (width < 0) width = 0;
+
+    // 如果 price == 0 或 roomNumber 为空，则显示黄色；否则蓝色
+    Color blockColor;
+    if (appt.price <= 0 || appt.roomNumber.isEmpty) {
+      blockColor = Colors.yellow.withOpacity(0.8);
+    } else {
+      blockColor = Colors.lightBlueAccent.withOpacity(0.8);
+    }
+
+    // 显示的文字
+    String txt = "房间 ${appt.roomNumber} "
+        + (appt.isNonCash ? "△ " : "")
+        + "￥${appt.price.toStringAsFixed(2)}";
+
+    return Positioned(
+      left: left,
+      top: 0,
+      width: width,
+      height: rowHeight,
+      child: GestureDetector(
+        onTap: () {
+          // 点击后，弹出编辑预约的对话框
+          _showEditAppointmentDialog(appt);
+        },
+        child: Container(
+          color: blockColor,
+          alignment: Alignment.center,
+          child: Text(
+            txt,
+            style: const TextStyle(fontSize: 14, color: Colors.white),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
     );
   }
 
@@ -718,20 +1043,18 @@ class _SchedulerPageState extends State<SchedulerPage> {
   }
 }
 
-/// 自定义绘制时间行的 Painter
-class TimeRowPainter extends CustomPainter {
+/// 背景画布，只绘制每小时的竖线和时间标签；不再绘制预约块
+class TimeRowBackgroundPainter extends CustomPainter {
   final int startHour;
   final int endHour;
   final double minuteWidth;
   final double rowHeight;
-  final List<Appointment> appointments;
 
-  TimeRowPainter({
+  TimeRowBackgroundPainter({
     required this.startHour,
     required this.endHour,
     required this.minuteWidth,
     required this.rowHeight,
-    required this.appointments,
   });
 
   @override
@@ -745,8 +1068,10 @@ class TimeRowPainter extends CustomPainter {
     // 绘制每小时竖线和时间标签
     for (int i = 0; i <= totalMinutes; i += 60) {
       double x = i * minuteWidth;
+      // 竖线
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), linePaint);
 
+      // 时间标签
       TextSpan span = TextSpan(
         text: "${startHour + i ~/ 60}:00",
         style: const TextStyle(fontSize: 10, color: Colors.black),
@@ -760,48 +1085,9 @@ class TimeRowPainter extends CustomPainter {
         tp.paint(canvas, Offset(x + 2, 2));
       }
     }
-
-    // 绘制预约块
-    for (var appt in appointments) {
-      int startMin = (appt.start.hour - startHour) * 60 + appt.start.minute;
-      int endMin = (appt.end.hour - startHour) * 60 + appt.end.minute;
-      startMin = startMin.clamp(0, totalMinutes);
-      endMin = endMin.clamp(0, totalMinutes);
-
-      double left = startMin * minuteWidth;
-      double width = (endMin - startMin) * minuteWidth;
-      if (width < 0) width = 0;
-
-      Paint rectPaint = Paint()
-        ..color = Colors.lightBlueAccent.withOpacity(0.8);
-
-      Rect rect = Rect.fromLTWH(left, 0, width, rowHeight);
-      canvas.drawRect(rect, rectPaint);
-
-      // 在预约块上显示：房间号、非现金标识(△)以及价格
-      String txt = "房间 ${appt.roomNumber} "
-          + (appt.isNonCash ? "△ " : "")
-          + "￥${appt.price.toStringAsFixed(2)}";
-
-      TextSpan sp = TextSpan(
-        text: txt,
-        style: const TextStyle(fontSize: 14, color: Colors.white),
-      );
-      TextPainter tPainter = TextPainter(
-        text: sp,
-        textDirection: TextDirection.ltr,
-      );
-      tPainter.layout(maxWidth: width);
-
-      double textX = left + (width - tPainter.width) / 2;
-      double textY = (rowHeight - tPainter.height) / 2;
-      if (textX < left) textX = left;
-      if (textX + tPainter.width > left + width) textX = left;
-      tPainter.paint(canvas, Offset(textX, textY));
-    }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
