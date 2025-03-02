@@ -506,7 +506,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
     );
   }
 
-  /// 弹窗：编辑已有预约
+  /// 弹窗：编辑已有预约（含删除预约功能）
   void _showEditAppointmentDialog(Appointment appt) {
     // 先复制当前预约的数据到临时变量，以便用户修改
     String selectedTherapist = appt.therapist;
@@ -650,9 +650,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
                                 controller: customDurationController,
                                 keyboardType: TextInputType.number,
                                 decoration: const InputDecoration(labelText: "自定义时长(分钟)"),
-                                onChanged: (v) {
-                                  // 不一定要做实时验证，可根据需要添加
-                                },
                               ),
                             ],
                           ],
@@ -697,6 +694,20 @@ class _SchedulerPageState extends State<SchedulerPage> {
                 ),
               ),
               actions: [
+                // 删除预约按钮
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      appointments.remove(appt);
+                    });
+                    _saveData();
+                    Navigator.of(ctx).pop();
+                  },
+                  child: const Text(
+                    "删除该预约",
+                    style: TextStyle(color: Colors.red),
+                  ),
+                ),
                 TextButton(
                   onPressed: () => Navigator.of(ctx).pop(),
                   child: const Text("取消"),
@@ -749,6 +760,45 @@ class _SchedulerPageState extends State<SchedulerPage> {
     );
   }
 
+  /// “删除技师”只删除该技师从当前所选日期(含)往后的预约；保留历史数据
+  void _deleteTherapist(String therapist) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text("删除技师：$therapist"),
+          content: const Text("确定要删除该技师从今天(含)往后的所有预约吗？历史数据将被保留。"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text("取消"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  // 只删除从当前所选日期(及之后)的预约
+                  appointments.removeWhere((appt) {
+                    if (appt.therapist == therapist) {
+                      final apptDate = DateTime(appt.start.year, appt.start.month, appt.start.day);
+                      final selDate = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
+                      // 如果 apptDate >= selDate，则删除
+                      return !apptDate.isBefore(selDate);
+                    }
+                    return false;
+                  });
+                  // 不从 therapists 里移除该技师，这样过去日期仍能看到他的历史记录
+                });
+                _saveData();
+                Navigator.of(ctx).pop();
+              },
+              child: const Text("删除"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   /// 切换到前一天
   void _gotoPrevDay() {
     setState(() {
@@ -761,36 +811,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
     setState(() {
       selectedDate = selectedDate.add(const Duration(days: 1));
     });
-  }
-
-  /// 删除技师及其预约
-  void _deleteTherapist(String therapist) {
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: Text("删除技师：$therapist"),
-          content: const Text("确定要删除该技师及其所有预约吗？"),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text("取消"),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  therapists.remove(therapist);
-                  appointments.removeWhere((appt) => appt.therapist == therapist);
-                });
-                _saveData();
-                Navigator.of(ctx).pop();
-              },
-              child: const Text("删除"),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   /// 构建单行（某个技师）的排程
@@ -940,6 +960,11 @@ class _SchedulerPageState extends State<SchedulerPage> {
     String dateString =
         "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
 
+    // 只显示在 selectedDate 这天有预约的技师
+    final visibleTherapists = therapists.where((t) {
+      return appointments.any((appt) => appt.therapist == t && isSameDay(appt.start, selectedDate));
+    }).toList();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("按摩店预约排程"),
@@ -988,7 +1013,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
       ),
       body: Stack(
         children: [
-          // 如果没有技师，就提示添加技师
+          // 如果没有技师，提示添加
           if (therapists.isEmpty)
             Center(
               child: Text(
@@ -1001,7 +1026,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
               padding: const EdgeInsets.only(bottom: 80),
               onReorder: _onReorder,
               children: [
-                for (String t in therapists)
+                for (String t in visibleTherapists)
                   _buildRowForTherapist(t, ValueKey(t)),
               ],
             ),
@@ -1090,4 +1115,3 @@ class TimeRowBackgroundPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-
