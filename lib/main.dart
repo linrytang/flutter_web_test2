@@ -54,7 +54,6 @@ void main() {
 /// 应用入口
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -68,7 +67,6 @@ class MyApp extends StatelessWidget {
 /// 主页面
 class SchedulerPage extends StatefulWidget {
   const SchedulerPage({super.key});
-
   @override
   State<SchedulerPage> createState() => _SchedulerPageState();
 }
@@ -113,7 +111,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
   Future<void> _loadData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
 
-    // 1. 读取 appointments
+    // 读取 appointments
     String? apptJson = prefs.getString("appointments");
     if (apptJson != null) {
       List<dynamic> list = jsonDecode(apptJson);
@@ -123,7 +121,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
       });
     }
 
-    // 2. 读取 dailyNotes
+    // 读取 dailyNotes
     String? notesJson = prefs.getString("dailyNotes");
     if (notesJson != null) {
       Map<String, dynamic> notesMap = jsonDecode(notesJson);
@@ -132,7 +130,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
       });
     }
 
-    // 3. 读取 therapists
+    // 读取 therapists
     String? therapistsJson = prefs.getString("therapists");
     if (therapistsJson != null) {
       List<dynamic> tList = jsonDecode(therapistsJson);
@@ -146,16 +144,16 @@ class _SchedulerPageState extends State<SchedulerPage> {
   Future<void> _saveData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
 
-    // 1. appointments
+    // 保存 appointments
     List<Map<String, dynamic>> apptList = appointments.map((a) => a.toJson()).toList();
     String apptJson = jsonEncode(apptList);
     await prefs.setString("appointments", apptJson);
 
-    // 2. dailyNotes
+    // 保存 dailyNotes
     String notesJson = jsonEncode(dailyNotes);
     await prefs.setString("dailyNotes", notesJson);
 
-    // 3. therapists 列表
+    // 保存 therapists 列表
     String therapistsJson = jsonEncode(therapists);
     await prefs.setString("therapists", therapistsJson);
   }
@@ -185,6 +183,20 @@ class _SchedulerPageState extends State<SchedulerPage> {
   /// 获取某一天的备注
   String getNoteForDay(DateTime day) {
     return dailyNotes[_dateKey(day)] ?? "";
+  }
+
+  /// 切换到前一天
+  void _gotoPrevDay() {
+    setState(() {
+      selectedDate = selectedDate.subtract(const Duration(days: 1));
+    });
+  }
+
+  /// 切换到后一天
+  void _gotoNextDay() {
+    setState(() {
+      selectedDate = selectedDate.add(const Duration(days: 1));
+    });
   }
 
   /// 弹窗：编辑当天备注
@@ -266,7 +278,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
 
   /// 弹窗：添加预约
   void _showAddAppointmentDialog() {
-    // 如果还没有添加任何技师，就提示先添加技师
     if (therapists.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("请先添加技师！")),
@@ -274,7 +285,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
       return;
     }
 
-    // 默认值
     String selectedTherapist = therapists.first;
     String durationOption = "30分钟";
     bool isCustomDuration = false;
@@ -282,8 +292,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
     TextEditingController priceController = TextEditingController();
     TextEditingController roomController = TextEditingController();
     bool isNonCash = false;
-
-    // 默认开始时间是当天 10:00
     DateTime startTime = DateTime(selectedDate.year, selectedDate.month, selectedDate.day, 10, 0);
 
     showDialog(
@@ -291,7 +299,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
-            // 内部函数：选择时间（滑动即更新）
             Future<void> pickTime() async {
               DateTime tempTime = startTime;
               await showModalBottomSheet(
@@ -309,7 +316,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
                               use24hFormat: true,
                               initialDateTime: tempTime,
                               onDateTimeChanged: (DateTime newDate) {
-                                // 实时更新临时时间
                                 setStateSheet(() {
                                   tempTime = DateTime(
                                     selectedDate.year,
@@ -324,7 +330,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
                           ),
                           ElevatedButton(
                             onPressed: () {
-                              // 点击“确定”后更新对话框中的 startTime
                               setStateDialog(() {
                                 startTime = tempTime;
                               });
@@ -346,7 +351,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // 技师选择
                     DropdownButtonFormField<String>(
                       decoration: const InputDecoration(labelText: "技师"),
                       value: selectedTherapist,
@@ -365,8 +369,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
                       },
                     ),
                     const SizedBox(height: 8),
-
-                    // 开始时间
                     Row(
                       children: [
                         const Text("开始时间: "),
@@ -380,8 +382,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
                       ],
                     ),
                     const SizedBox(height: 8),
-
-                    // 持续时长
                     DropdownButtonFormField<String>(
                       decoration: const InputDecoration(labelText: "持续时长"),
                       value: durationOption,
@@ -408,23 +408,17 @@ class _SchedulerPageState extends State<SchedulerPage> {
                       ),
                     ],
                     const SizedBox(height: 8),
-
-                    // 价格
                     TextField(
                       controller: priceController,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       decoration: const InputDecoration(labelText: "价格"),
                     ),
                     const SizedBox(height: 8),
-
-                    // 房间号
                     TextField(
                       controller: roomController,
                       decoration: const InputDecoration(labelText: "房间号"),
                     ),
                     const SizedBox(height: 8),
-
-                    // 是否非现金支付
                     Row(
                       children: [
                         const Text("非现金支付: "),
@@ -451,10 +445,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
                 ),
                 ElevatedButton(
                   onPressed: () {
-                    // 读取价格
                     double p = double.tryParse(priceController.text) ?? 0.0;
-
-                    // 计算持续时间
                     int finalDuration;
                     if (isCustomDuration) {
                       finalDuration = int.tryParse(customDurationController.text) ?? 0;
@@ -468,8 +459,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
                       String numStr = durationOption.replaceAll("分钟", "");
                       finalDuration = int.tryParse(numStr) ?? 30;
                     }
-
-                    // 结束时间
                     DateTime endTime = startTime.add(Duration(minutes: finalDuration));
                     if (endTime.isBefore(startTime)) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -477,8 +466,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
                       );
                       return;
                     }
-
-                    // 构建新的预约对象
                     String newId = "${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(1000)}";
                     Appointment appt = Appointment(
                       id: newId,
@@ -489,7 +476,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
                       roomNumber: roomController.text,
                       isNonCash: isNonCash,
                     );
-
                     setState(() {
                       appointments.add(appt);
                     });
@@ -508,7 +494,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
 
   /// 弹窗：编辑已有预约（含删除预约功能）
   void _showEditAppointmentDialog(Appointment appt) {
-    // 先复制当前预约的数据到临时变量，以便用户修改
     String selectedTherapist = appt.therapist;
     DateTime startTime = appt.start;
     Duration duration = appt.end.difference(appt.start);
@@ -521,7 +506,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
-            // 选择时间（滑动即更新）
             Future<void> pickTime() async {
               DateTime tempTime = startTime;
               await showModalBottomSheet(
@@ -567,8 +551,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
                 },
               );
             }
-
-            // 根据当前时长(分钟)自动推断下拉框选项
             int minutes = duration.inMinutes;
             String durationOption;
             if (minutes == 30 || minutes == 45 || minutes == 60) {
@@ -587,7 +569,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // 技师选择
                     DropdownButtonFormField<String>(
                       decoration: const InputDecoration(labelText: "技师"),
                       value: selectedTherapist,
@@ -606,8 +587,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
                       },
                     ),
                     const SizedBox(height: 8),
-
-                    // 开始时间
                     Row(
                       children: [
                         const Text("开始时间: "),
@@ -621,8 +600,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
                       ],
                     ),
                     const SizedBox(height: 8),
-
-                    // 持续时长
                     StatefulBuilder(
                       builder: (ctxSB, setStateSB) {
                         return Column(
@@ -657,23 +634,17 @@ class _SchedulerPageState extends State<SchedulerPage> {
                       },
                     ),
                     const SizedBox(height: 8),
-
-                    // 价格
                     TextField(
                       controller: priceController,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       decoration: const InputDecoration(labelText: "价格"),
                     ),
                     const SizedBox(height: 8),
-
-                    // 房间号
                     TextField(
                       controller: roomController,
                       decoration: const InputDecoration(labelText: "房间号"),
                     ),
                     const SizedBox(height: 8),
-
-                    // 是否非现金支付
                     Row(
                       children: [
                         const Text("非现金支付: "),
@@ -703,10 +674,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
                     _saveData();
                     Navigator.of(ctx).pop();
                   },
-                  child: const Text(
-                    "删除该预约",
-                    style: TextStyle(color: Colors.red),
-                  ),
+                  child: const Text("删除该预约", style: TextStyle(color: Colors.red)),
                 ),
                 TextButton(
                   onPressed: () => Navigator.of(ctx).pop(),
@@ -715,8 +683,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
                 ElevatedButton(
                   onPressed: () {
                     double p = double.tryParse(priceController.text) ?? 0.0;
-
-                    // 计算新的持续时长
                     int finalDuration;
                     if (isCustomDuration) {
                       finalDuration = int.tryParse(customDurationController.text) ?? 0;
@@ -736,8 +702,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
                       );
                       return;
                     }
-
-                    // 更新原有预约对象
                     setState(() {
                       appt.therapist = selectedTherapist;
                       appt.start = startTime;
@@ -746,7 +710,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
                       appt.roomNumber = roomController.text;
                       appt.isNonCash = isNonCash;
                     });
-
                     _saveData();
                     Navigator.of(ctx).pop();
                   },
@@ -776,17 +739,14 @@ class _SchedulerPageState extends State<SchedulerPage> {
             ElevatedButton(
               onPressed: () {
                 setState(() {
-                  // 只删除从当前所选日期(及之后)的预约
                   appointments.removeWhere((appt) {
                     if (appt.therapist == therapist) {
                       final apptDate = DateTime(appt.start.year, appt.start.month, appt.start.day);
                       final selDate = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
-                      // 如果 apptDate >= selDate，则删除
                       return !apptDate.isBefore(selDate);
                     }
                     return false;
                   });
-                  // 不从 therapists 里移除该技师，这样过去日期仍能看到他的历史记录
                 });
                 _saveData();
                 Navigator.of(ctx).pop();
@@ -797,20 +757,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
         );
       },
     );
-  }
-
-  /// 切换到前一天
-  void _gotoPrevDay() {
-    setState(() {
-      selectedDate = selectedDate.subtract(const Duration(days: 1));
-    });
-  }
-
-  /// 切换到后一天
-  void _gotoNextDay() {
-    setState(() {
-      selectedDate = selectedDate.add(const Duration(days: 1));
-    });
   }
 
   /// 构建单行（某个技师）的排程
@@ -836,7 +782,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
 
     return Row(
       children: [
-        // 左侧区域：技师姓名 + 当天营业额 + 点击可删除
+        // 左侧：技师姓名 + 当天营业额 + 点击可删除技师（删除仅删除未来预约）
         InkWell(
           onTap: () {
             _deleteTherapist(therapist);
@@ -858,7 +804,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
             ),
           ),
         ),
-        // 右侧区域：时间表网格 + 预约块
+        // 右侧：时间表网格 + 预约块
         Expanded(
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -867,7 +813,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
               height: rowHeight,
               child: Stack(
                 children: [
-                  // 背景画布：绘制小时线、时间标签
                   CustomPaint(
                     size: Size(tableWidth, rowHeight),
                     painter: TimeRowBackgroundPainter(
@@ -877,7 +822,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
                       rowHeight: rowHeight,
                     ),
                   ),
-                  // 逐个绘制预约块
                   for (var appt in dayAppointments) _buildAppointmentBlock(appt),
                 ],
               ),
@@ -900,7 +844,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
     double width = (endMin - startMin) * minuteWidth;
     if (width < 0) width = 0;
 
-    // 如果 price == 0 或 roomNumber 为空，则显示黄色；否则蓝色
+    // 如果价格为0或房间号为空，则显示黄色，否则蓝色
     Color blockColor;
     if (appt.price <= 0 || appt.roomNumber.isEmpty) {
       blockColor = Colors.yellow.withOpacity(0.8);
@@ -908,10 +852,9 @@ class _SchedulerPageState extends State<SchedulerPage> {
       blockColor = Colors.lightBlueAccent.withOpacity(0.8);
     }
 
-    // 显示的文字
-    String txt = "房间 ${appt.roomNumber} "
-        + (appt.isNonCash ? "△ " : "")
-        + "￥${appt.price.toStringAsFixed(2)}";
+    String txt = "房间 ${appt.roomNumber} " +
+        (appt.isNonCash ? "△ " : "") +
+        "￥${appt.price.toStringAsFixed(2)}";
 
     return Positioned(
       left: left,
@@ -920,7 +863,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
       height: rowHeight,
       child: GestureDetector(
         onTap: () {
-          // 点击后，弹出编辑预约的对话框
           _showEditAppointmentDialog(appt);
         },
         child: Container(
@@ -950,20 +892,20 @@ class _SchedulerPageState extends State<SchedulerPage> {
 
   @override
   Widget build(BuildContext context) {
-    // 当天总营业额
     double dailyRev = getDailyRevenue(selectedDate);
-    // 当天非现金营业额
     double nonCashRev = appointments
         .where((a) => isSameDay(a.start, selectedDate) && a.isNonCash)
         .fold(0.0, (prev, a) => prev + a.price);
-
     String dateString =
         "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
 
-    // 只显示在 selectedDate 这天有预约的技师
-    final visibleTherapists = therapists.where((t) {
-      return appointments.any((appt) => appt.therapist == t && isSameDay(appt.start, selectedDate));
-    }).toList();
+    // 修改：如果选择的日期是今天或过去的日期，显示所有技师；如果是未来日期，则只显示当天有预约的技师
+    final today = _truncateToDate(DateTime.now());
+    final visibleTherapists = (selectedDate.isBefore(today) || isSameDay(selectedDate, today))
+        ? therapists
+        : therapists.where((t) {
+            return appointments.any((appt) => appt.therapist == t && isSameDay(appt.start, selectedDate));
+          }).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -1013,7 +955,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
       ),
       body: Stack(
         children: [
-          // 如果没有技师，提示添加
           if (therapists.isEmpty)
             Center(
               child: Text(
@@ -1026,11 +967,9 @@ class _SchedulerPageState extends State<SchedulerPage> {
               padding: const EdgeInsets.only(bottom: 80),
               onReorder: _onReorder,
               children: [
-                for (String t in visibleTherapists)
-                  _buildRowForTherapist(t, ValueKey(t)),
+                for (String t in visibleTherapists) _buildRowForTherapist(t, ValueKey(t)),
               ],
             ),
-          // 左下角：备注按钮
           Positioned(
             left: 16,
             bottom: 16,
@@ -1039,7 +978,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
               child: const Text("备注"),
             ),
           ),
-          // 右下角：添加预约
           Positioned(
             right: 16,
             bottom: 16,
@@ -1050,7 +988,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
           ),
         ],
       ),
-      // 底部营业额统计栏
       bottomNavigationBar: BottomAppBar(
         color: Colors.white,
         elevation: 8.0,
@@ -1068,7 +1005,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
   }
 }
 
-/// 背景画布，只绘制每小时的竖线和时间标签；不再绘制预约块
+/// 背景画布，只绘制每小时的竖线和时间标签
 class TimeRowBackgroundPainter extends CustomPainter {
   final int startHour;
   final int endHour;
@@ -1087,16 +1024,10 @@ class TimeRowBackgroundPainter extends CustomPainter {
     Paint linePaint = Paint()
       ..color = Colors.grey
       ..strokeWidth = 1.0;
-
     int totalMinutes = (endHour - startHour) * 60;
-
-    // 绘制每小时竖线和时间标签
     for (int i = 0; i <= totalMinutes; i += 60) {
       double x = i * minuteWidth;
-      // 竖线
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), linePaint);
-
-      // 时间标签
       TextSpan span = TextSpan(
         text: "${startHour + i ~/ 60}:00",
         style: const TextStyle(fontSize: 10, color: Colors.black),
