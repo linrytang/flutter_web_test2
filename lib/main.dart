@@ -4,14 +4,15 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// 预约数据模型
+/// 预约数据模型，新增了房间号和是否非现金支付两个字段
 class Appointment {
   String id;
   String therapist;
   DateTime start;
   DateTime end;
   double price;
-  bool starred;
+  String roomNumber; // 新增房间号
+  bool isNonCash;    // 新增是否非现金支付
 
   Appointment({
     required this.id,
@@ -19,17 +20,19 @@ class Appointment {
     required this.start,
     required this.end,
     required this.price,
-    this.starred = false,
+    required this.roomNumber,
+    this.isNonCash = false,
   });
 
   Map<String, dynamic> toJson() => {
-    "id": id,
-    "therapist": therapist,
-    "start": start.toIso8601String(),
-    "end": end.toIso8601String(),
-    "price": price,
-    "starred": starred,
-  };
+        "id": id,
+        "therapist": therapist,
+        "start": start.toIso8601String(),
+        "end": end.toIso8601String(),
+        "price": price,
+        "roomNumber": roomNumber,
+        "isNonCash": isNonCash,
+      };
 
   factory Appointment.fromJson(Map<String, dynamic> json) {
     return Appointment(
@@ -38,7 +41,8 @@ class Appointment {
       start: DateTime.parse(json["start"]),
       end: DateTime.parse(json["end"]),
       price: (json["price"] as num).toDouble(),
-      starred: json["starred"],
+      roomNumber: json["roomNumber"] ?? "",
+      isNonCash: json["isNonCash"] ?? false,
     );
   }
 }
@@ -242,7 +246,8 @@ class _SchedulerPageState extends State<SchedulerPage> {
     bool isCustomDuration = false;
     TextEditingController customDurationController = TextEditingController();
     TextEditingController priceController = TextEditingController();
-    bool starred = false;
+    TextEditingController roomController = TextEditingController(); // 房间号输入
+    bool isNonCash = false; // 是否非现金支付
 
     DateTime startTime = DateTime(selectedDate.year, selectedDate.month, selectedDate.day, 10, 0);
 
@@ -295,7 +300,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
                     },
                   ),
                   const SizedBox(height: 8),
-
                   Row(
                     children: [
                       const Text("开始时间: "),
@@ -309,7 +313,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
                     ],
                   ),
                   const SizedBox(height: 8),
-
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: "持续时长"),
                     value: durationOption,
@@ -336,26 +339,31 @@ class _SchedulerPageState extends State<SchedulerPage> {
                     ),
                   ],
                   const SizedBox(height: 8),
-
                   TextField(
                     controller: priceController,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     decoration: const InputDecoration(labelText: "价格"),
                   ),
                   const SizedBox(height: 8),
-
+                  // 新增房间号输入
+                  TextField(
+                    controller: roomController,
+                    decoration: const InputDecoration(labelText: "房间号"),
+                  ),
+                  const SizedBox(height: 8),
+                  // 新增非现金支付选择（三角标）
                   Row(
                     children: [
-                      const Text("星标: "),
+                      const Text("非现金支付: "),
                       IconButton(
                         onPressed: () {
                           setStateDialog(() {
-                            starred = !starred;
+                            isNonCash = !isNonCash;
                           });
                         },
                         icon: Icon(
-                          starred ? Icons.star : Icons.star_border,
-                          color: starred ? Colors.red : Colors.grey,
+                          Icons.change_history,
+                          color: isNonCash ? Colors.red : Colors.grey,
                         ),
                       ),
                     ],
@@ -401,7 +409,8 @@ class _SchedulerPageState extends State<SchedulerPage> {
                     start: startTime,
                     end: endTime,
                     price: p,
-                    starred: starred,
+                    roomNumber: roomController.text,
+                    isNonCash: isNonCash,
                   );
                   setState(() {
                     appointments.add(appt);
@@ -545,7 +554,11 @@ class _SchedulerPageState extends State<SchedulerPage> {
   @override
   Widget build(BuildContext context) {
     double dailyRev = getDailyRevenue(selectedDate);
-    String dateString = "${selectedDate.year}-${selectedDate.month.toString().padLeft(2,'0')}-${selectedDate.day.toString().padLeft(2,'0')}";
+    double nonCashRev = appointments
+        .where((a) => isSameDay(a.start, selectedDate) && a.isNonCash)
+        .fold(0.0, (prev, a) => prev + a.price);
+    String dateString =
+        "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
 
     return Scaffold(
       appBar: AppBar(
@@ -563,7 +576,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               IconButton(
-                icon: const Icon(Icons.arrow_left, color: Colors.black),
+                icon: const Icon(Icons.arrow_left, color: Colors.white),
                 onPressed: _gotoPrevDay,
               ),
               GestureDetector(
@@ -582,11 +595,11 @@ class _SchedulerPageState extends State<SchedulerPage> {
                 },
                 child: Text(
                   dateString,
-                  style: const TextStyle(fontSize: 16, color: Colors.black),
+                  style: const TextStyle(fontSize: 16, color: Colors.white),
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.arrow_right, color: Colors.black),
+                icon: const Icon(Icons.arrow_right, color: Colors.white),
                 onPressed: _gotoNextDay,
               ),
             ],
@@ -638,7 +651,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
           height: 50,
           child: Center(
             child: Text(
-              "营业额: ￥${dailyRev.toStringAsFixed(2)}",
+              "营业额: ￥${dailyRev.toStringAsFixed(2)}，其中非现金金额: ￥${nonCashRev.toStringAsFixed(2)}",
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
           ),
@@ -672,12 +685,11 @@ class TimeRowPainter extends CustomPainter {
 
     int totalMinutes = (endHour - startHour) * 60;
 
-    // 绘制每小时竖线
+    // 绘制每小时竖线和时间标签
     for (int i = 0; i <= totalMinutes; i += 60) {
       double x = i * minuteWidth;
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), linePaint);
 
-      // 时间标签
       TextSpan span = TextSpan(
         text: "${startHour + i ~/ 60}:00",
         style: const TextStyle(fontSize: 10, color: Colors.black),
@@ -704,15 +716,13 @@ class TimeRowPainter extends CustomPainter {
       if (width < 0) width = 0;
 
       Paint rectPaint = Paint()
-        ..color = appt.starred
-            ? Colors.redAccent.withOpacity(0.8)
-            : Colors.lightBlueAccent.withOpacity(0.8);
+        ..color = Colors.lightBlueAccent.withOpacity(0.8);
 
       Rect rect = Rect.fromLTWH(left, 0, width, rowHeight);
       canvas.drawRect(rect, rectPaint);
 
-      String txt = appt.starred ? "★ ￥${appt.price.toStringAsFixed(2)}"
-                                : "￥${appt.price.toStringAsFixed(2)}";
+      // 显示内容：房间号、非现金标识（三角）及价格
+      String txt = "房间 ${appt.roomNumber} " + (appt.isNonCash ? "△ " : "") + "￥${appt.price.toStringAsFixed(2)}";
       TextSpan sp = TextSpan(
         text: txt,
         style: const TextStyle(fontSize: 14, color: Colors.white),

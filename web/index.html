@@ -1,20 +1,12 @@
-!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
   <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the --base-href argument provided to flutter build.
+    由于你在 GitHub Pages 上使用 /docs 文件夹（或类似子目录）来部署，
+    我们将 base href 固定为 "./"，使资源加载相对于当前目录。
+    如果你放在根目录（gh-pages / root），也能正常工作。
   -->
-  <base href="$FLUTTER_BASE_HREF">
+  <base href="./">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
@@ -33,6 +25,7 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <!-- Flutter 启动脚本 -->
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
