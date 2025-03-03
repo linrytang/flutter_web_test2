@@ -41,7 +41,7 @@ class Appointment {
   double price;
   String roomNumber;
   bool isNonCash;
-  bool starred; // 新增：是否星标熟客
+  bool starred; // 是否星标熟客
 
   Appointment({
     required this.id,
@@ -309,7 +309,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
     );
   }
 
-  /// 添加预约（含星标熟客功能）
+  /// 添加预约（星标图标：黄色星星）
   void _showAddAppointmentDialog() {
     if (therapists.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -325,7 +325,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
     TextEditingController priceController = TextEditingController();
     TextEditingController roomController = TextEditingController();
     bool isNonCash = false;
-    bool starred = false; // 新增：是否星标
+    bool starred = false; // 是否星标
 
     DateTime startTime = DateTime(selectedDate.year, selectedDate.month, selectedDate.day, 10, 0);
 
@@ -483,7 +483,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
                     ),
                     const SizedBox(height: 8),
 
-                    // 星标熟客
+                    // 星标熟客：图标颜色改为黄色
                     Row(
                       children: [
                         const Text("星标熟客: "),
@@ -495,7 +495,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
                           },
                           icon: Icon(
                             starred ? Icons.star : Icons.star_border,
-                            color: starred ? Colors.red : Colors.grey,
+                            color: starred ? Colors.yellow : Colors.grey,
                           ),
                         ),
                       ],
@@ -563,7 +563,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
     );
   }
 
-  /// 编辑预约，含删除 & 星标熟客
+  /// 编辑预约（星标图标：黄色星星）
   void _showEditAppointmentDialog(Appointment appt) {
     String selectedTherapistName = appt.therapistName;
     DateTime startTime = appt.start;
@@ -743,7 +743,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
                     ),
                     const SizedBox(height: 8),
 
-                    // 星标熟客
+                    // 星标熟客：图标颜色改为黄色
                     Row(
                       children: [
                         const Text("星标熟客: "),
@@ -755,7 +755,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
                           },
                           icon: Icon(
                             starred ? Icons.star : Icons.star_border,
-                            color: starred ? Colors.red : Colors.grey,
+                            color: starred ? Colors.yellow : Colors.grey,
                           ),
                         ),
                       ],
@@ -940,7 +940,9 @@ class _SchedulerPageState extends State<SchedulerPage> {
     double width = (endMin - startMin) * minuteWidth;
     if (width < 0) width = 0;
 
-    // 星标熟客 => 红色；否则如果价格=0或房间号空 => 黄；否则蓝
+    // 如果是星标熟客 => 红色块
+    // 否则如果价格=0或房间号空 => 黄色
+    // 否则蓝色
     Color blockColor;
     if (appt.starred) {
       blockColor = Colors.redAccent.withOpacity(0.8);
@@ -951,7 +953,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
     }
 
     // 显示的文字：房间、非现金标识、价格
-    // 也可以加上 "★" 如果 starred, 这里用红色块替代
     String txt = "房间 ${appt.roomNumber} "
         + (appt.isNonCash ? "△ " : "")
         + "￥${appt.price.toStringAsFixed(2)}";
@@ -1022,7 +1023,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               IconButton(
-                icon: const Icon(Icons.arrow_left, color: Colors.white),
+                icon: const Icon(Icons.arrow_left, color: Colors.black),
                 onPressed: _gotoPrevDay,
               ),
               GestureDetector(
@@ -1041,11 +1042,11 @@ class _SchedulerPageState extends State<SchedulerPage> {
                 },
                 child: Text(
                   dateString,
-                  style: const TextStyle(fontSize: 16, color: Colors.white),
+                  style: const TextStyle(fontSize: 16, color: Colors.black),
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.arrow_right, color: Colors.white),
+                icon: const Icon(Icons.arrow_right, color: Colors.black),
                 onPressed: _gotoNextDay,
               ),
             ],
