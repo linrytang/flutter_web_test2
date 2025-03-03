@@ -86,7 +86,6 @@ void main() {
 /// 应用入口
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -100,7 +99,6 @@ class MyApp extends StatelessWidget {
 /// 主页面
 class SchedulerPage extends StatefulWidget {
   const SchedulerPage({super.key});
-
   @override
   State<SchedulerPage> createState() => _SchedulerPageState();
 }
@@ -137,6 +135,20 @@ class _SchedulerPageState extends State<SchedulerPage> {
 
   bool isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  /// 检查同一技师的预约是否重叠（只检查当天的预约）
+  bool isOverlapping(String therapistName, DateTime newStart, DateTime newEnd, [String? excludeId]) {
+    for (var appt in appointments) {
+      if (appt.therapistName == therapistName && isSameDay(appt.start, newStart)) {
+        if (excludeId != null && appt.id == excludeId) continue;
+        // 如果新预约与已有预约重叠：newStart < appt.end 且 newEnd > appt.start
+        if (newStart.isBefore(appt.end) && newEnd.isAfter(appt.start)) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   /// 从本地存储加载数据
@@ -286,7 +298,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
               onPressed: () {
                 String name = controller.text.trim();
                 if (name.isNotEmpty) {
-                  // 如果同名技师不存在，就添加
                   bool alreadyExists = therapists.any((th) => th.name == name);
                   if (!alreadyExists) {
                     setState(() {
@@ -309,7 +320,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
     );
   }
 
-  /// 添加预约（星标图标：黄色星星）
+  /// 添加预约（含星标熟客功能、时间重叠检测）
   void _showAddAppointmentDialog() {
     if (therapists.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -405,7 +416,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
                       },
                     ),
                     const SizedBox(height: 8),
-
                     // 开始时间
                     Row(
                       children: [
@@ -420,7 +430,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
                       ],
                     ),
                     const SizedBox(height: 8),
-
                     // 持续时长
                     DropdownButtonFormField<String>(
                       decoration: const InputDecoration(labelText: "持续时长"),
@@ -448,7 +457,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
                       ),
                     ],
                     const SizedBox(height: 8),
-
                     // 价格
                     TextField(
                       controller: priceController,
@@ -456,14 +464,12 @@ class _SchedulerPageState extends State<SchedulerPage> {
                       decoration: const InputDecoration(labelText: "价格"),
                     ),
                     const SizedBox(height: 8),
-
                     // 房间号
                     TextField(
                       controller: roomController,
                       decoration: const InputDecoration(labelText: "房间号"),
                     ),
                     const SizedBox(height: 8),
-
                     // 非现金支付
                     Row(
                       children: [
@@ -482,8 +488,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
                       ],
                     ),
                     const SizedBox(height: 8),
-
-                    // 星标熟客：图标颜色改为黄色
+                    // 星标熟客（图标颜色为黄色）
                     Row(
                       children: [
                         const Text("星标熟客: "),
@@ -511,8 +516,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
                 ElevatedButton(
                   onPressed: () {
                     double p = double.tryParse(priceController.text) ?? 0.0;
-
-                    // 持续时长
                     int finalDuration;
                     if (isCustomDuration) {
                       finalDuration = int.tryParse(customDurationController.text) ?? 0;
@@ -526,7 +529,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
                       String numStr = durationOption.replaceAll("分钟", "");
                       finalDuration = int.tryParse(numStr) ?? 30;
                     }
-
                     DateTime endTime = startTime.add(Duration(minutes: finalDuration));
                     if (endTime.isBefore(startTime)) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -534,7 +536,13 @@ class _SchedulerPageState extends State<SchedulerPage> {
                       );
                       return;
                     }
-
+                    // 检查同一技师是否已有重叠预约
+                    if (isOverlapping(selectedTherapistName, startTime, endTime)) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("该技师在此时间已有预约，请选择其它时间。")),
+                      );
+                      return;
+                    }
                     String newId = "${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(1000)}";
                     Appointment appt = Appointment(
                       id: newId,
@@ -546,7 +554,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
                       isNonCash: isNonCash,
                       starred: starred,
                     );
-
                     setState(() {
                       appointments.add(appt);
                     });
@@ -563,7 +570,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
     );
   }
 
-  /// 编辑预约（星标图标：黄色星星）
+  /// 编辑预约（含删除预约功能、重叠检测、星标图标黄色显示）
   void _showEditAppointmentDialog(Appointment appt) {
     String selectedTherapistName = appt.therapistName;
     DateTime startTime = appt.start;
@@ -660,7 +667,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
                       },
                     ),
                     const SizedBox(height: 8),
-
                     // 开始时间
                     Row(
                       children: [
@@ -675,7 +681,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
                       ],
                     ),
                     const SizedBox(height: 8),
-
                     StatefulBuilder(
                       builder: (ctxSB, setStateSB) {
                         return Column(
@@ -710,21 +715,18 @@ class _SchedulerPageState extends State<SchedulerPage> {
                       },
                     ),
                     const SizedBox(height: 8),
-
                     TextField(
                       controller: priceController,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       decoration: const InputDecoration(labelText: "价格"),
                     ),
                     const SizedBox(height: 8),
-
                     TextField(
                       controller: roomController,
                       decoration: const InputDecoration(labelText: "房间号"),
                     ),
                     const SizedBox(height: 8),
-
-                    // 非现金
+                    // 非现金支付
                     Row(
                       children: [
                         const Text("非现金支付: "),
@@ -742,8 +744,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
                       ],
                     ),
                     const SizedBox(height: 8),
-
-                    // 星标熟客：图标颜色改为黄色
+                    // 星标熟客：图标颜色为黄色
                     Row(
                       children: [
                         const Text("星标熟客: "),
@@ -764,7 +765,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
                 ),
               ),
               actions: [
-                // 删除预约
+                // 删除预约按钮
                 TextButton(
                   onPressed: () {
                     setState(() {
@@ -801,7 +802,13 @@ class _SchedulerPageState extends State<SchedulerPage> {
                       );
                       return;
                     }
-
+                    // 检查重叠：排除当前预约
+                    if (isOverlapping(selectedTherapistName, startTime, endTime, appt.id)) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("该技师在此时间已有预约，请选择其它时间。")),
+                      );
+                      return;
+                    }
                     setState(() {
                       appt.therapistName = selectedTherapistName;
                       appt.start = startTime;
@@ -825,7 +832,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
   }
 
   /// “删除技师” -> 从当前日期起，不再显示该技师
-  /// 实际做法：把 therapist.deletedAt = selectedDate (或 DateTime.now())
   void _deleteTherapist(Therapist therapist) {
     showDialog(
       context: context,
@@ -841,7 +847,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
             ElevatedButton(
               onPressed: () {
                 setState(() {
-                  // 从 selectedDate 这天开始不再显示
                   therapist.deletedAt = selectedDate;
                 });
                 _saveData();
@@ -940,22 +945,19 @@ class _SchedulerPageState extends State<SchedulerPage> {
     double width = (endMin - startMin) * minuteWidth;
     if (width < 0) width = 0;
 
-    // 如果是星标熟客 => 红色块
-    // 否则如果价格=0或房间号空 => 黄色
-    // 否则蓝色
+    // 修改颜色逻辑：如果价格<=0或房间号为空，则显示黄色（优先）；否则如果星标则红色，否则蓝色
     Color blockColor;
-    if (appt.starred) {
-      blockColor = Colors.redAccent.withOpacity(0.8);
-    } else if (appt.price <= 0 || appt.roomNumber.isEmpty) {
+    if (appt.price <= 0 || appt.roomNumber.isEmpty) {
       blockColor = Colors.yellow.withOpacity(0.8);
+    } else if (appt.starred) {
+      blockColor = Colors.redAccent.withOpacity(0.8);
     } else {
       blockColor = Colors.lightBlueAccent.withOpacity(0.8);
     }
 
-    // 显示的文字：房间、非现金标识、价格
-    String txt = "房间 ${appt.roomNumber} "
-        + (appt.isNonCash ? "△ " : "")
-        + "￥${appt.price.toStringAsFixed(2)}";
+    String txt = "房间 ${appt.roomNumber} " +
+        (appt.isNonCash ? "△ " : "") +
+        "￥${appt.price.toStringAsFixed(2)}";
 
     return Positioned(
       left: left,
@@ -999,9 +1001,7 @@ class _SchedulerPageState extends State<SchedulerPage> {
     String dateString =
         "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
 
-    // 过滤出要显示的技师
-    // 如果 therapist.deletedAt == null，则一直显示
-    // 如果 therapist.deletedAt != null，只有当 selectedDate < deletedAt 时才显示
+    // 过滤出要显示的技师：如果 deletedAt==null，则一直显示；否则只有当 selectedDate < deletedAt 时显示
     final visibleTherapists = therapists.where((th) {
       if (th.deletedAt == null) return true;
       return selectedDate.isBefore(_truncateToDate(th.deletedAt!));
@@ -1055,7 +1055,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
       ),
       body: Stack(
         children: [
-          // 如果列表空，就提示添加
           if (therapists.isEmpty)
             Center(
               child: Text(
@@ -1092,7 +1091,6 @@ class _SchedulerPageState extends State<SchedulerPage> {
           ),
         ],
       ),
-      // 底部营业额
       bottomNavigationBar: BottomAppBar(
         color: Colors.white,
         elevation: 8.0,
